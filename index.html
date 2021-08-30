@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bid Multipliers UI</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <style>
+        body {
+            font-family: 'Open Sans', sans-serif;
+        }
+        
+        h1 {
+            font-weight: bolder;
+        }
+        
+        #container {
+            font-size: larger;
+            width: 30%;
+            text-align: center;
+            margin: 0;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            -ms-transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%);
+        }
+        
+        form {
+            text-align: left;
+        }
+        
+        input {
+            width: 100%;
+        }
+        
+        label {
+            margin: 0%;
+            font-weight: bolder;
+        }
+        
+        .section {
+            text-align: left;
+            margin: 1.5%;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <!--
+    PAGE LAYOUT
+     -->
+
+    <div id="container">
+        <div id="header">
+            <h1><b>Bid Multipliers UI</b></h1>
+            <p>View your audiences in the <a href="https://facebook.com">Audience Tool.</a></p>
+        </div>
+        <div id="main">
+
+        </div>
+    </div>
+
+    <!--
+    LOGIN DIV
+     -->
+
+    <div id="login" style="display:none">
+        <form id="loginform">
+            <div class="section">
+                <label for="ID">Ad Account ID</label><br>
+                <input type="text" id="ID" name="ID"><br>
+            </div>
+            <div class="section">
+                <label for="token">Access Token</label><br>
+                <input type="text" id="token" name="token">
+                <p><i>See <a href="https://www.facebook.com">instructions</a> for obtaining an access token</i></p>
+            </div>
+            <div class="section">
+                <input type="submit" value="Load Campaigns" id="submitaccount">
+            </div>
+        </form>
+    </div>
+
+    <!--
+    CHOOSE ADSET DIV
+     -->
+    <div id="choose" style="display:none">
+        <div class="section">
+            <label for="AdAccount" id="adaccount"><b>Ad Account: </b></label>
+        </div>
+        <form>
+            <div class="section">
+                <label for="Campaign">Campaign:</label>
+                <select name="Campaign" id="campaign">
+                  <option>Campaign</option>
+                </select>
+            </div>
+            <form>
+                <div class="section">
+                    <label for="Adset">Ad Set:</label>
+                    <select name="Adset" id="adset">
+                      <option>Adset</option>
+                    </select>
+                </div>
+                <div class="section">
+                    <button class="btn btn-primary">Back</button>
+                    <button class="btn btn-primary" id="next">Next</button>
+                </div>
+            </form>
+    </div>
+    <!--
+    CHOOSE EDIT DIV
+     -->
+
+    <div id="edit" style="display:none">
+        <div class="section">
+            <label for="AdAccount" id="sadaccount"><b>Ad Account: </b></label>
+        </div>
+        <div class="section">
+            <label for="AdAccount" id="scampaign"><b>Campaign: </b></label>
+        </div>
+        <div class="section">
+            <label for="AdAccount" id="sadset"><b>Ad Set: </b></label>
+        </div>
+        <div class="section">
+            <h4><b>Current Multipliers: </b></h4>
+        </div>
+        <table class="table section">
+            <thead>
+                <tr>
+                    <th scope="col">Audience</th>
+                    <th scope="col">Bid</th>
+                    <th scope="col"></th>
+                </tr>
+            </thead>
+            <tbody id="content">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- JAVASCRIPT-->
+
+    <script>
+        function check(id, token) {
+            if (id.length == 0 || token.length == 0) {
+                Swal.fire({
+                    title: 'No Content!',
+                    text: 'You must fill both the account id and the access token to continue.',
+                    icon: 'error',
+                    confirmButtonText: 'Continue',
+                    timer: 20000
+                })
+                return false
+            }
+            //TODO check if id and token are valid
+            var d = {
+                access_token: token
+            };
+            $.ajax({
+                url: 'https://graph.facebook.com/v11.0/act_<AD_ACCOUNT_ID>',
+                data: JSON.stringify(d),
+                success: function(response, status, xhr) {
+                    id = response;
+                },
+                error: function(XMLHTTPRequest, status, errorMessage) {
+                    alert(XMLHttpRequest.responseText);
+                }
+            });
+            return true;
+        }
+
+        function choose(acc) {
+            //change layout
+            let main = document.getElementById("main");
+            let choose = document.getElementById("choose");
+            main.innerHTML = choose.innerHTML;
+            document.getElementById("adaccount").innerHTML += '<span style="color: blue ">' + acc + '</span>';
+            //TODO: get campaigns and adsets
+            var d = {
+                fields:[adcampaign_groups]
+            };
+            $.ajax({
+                url: 'https://graph.facebook.com/v11.0/act_<AD_ACCOUNT_ID>',
+                data: JSON.stringify(d),
+                success: function(response, status, xhr) {
+                    id = response;
+                },
+                error: function(XMLHTTPRequest, status, errorMessage) {
+                    alert(XMLHttpRequest.responseText);
+                }
+            });
+            let campaigns = ["campaign 2", "campaign incredible"];
+            let adsets = ["adset 20", "adset amazing"];
+            campaigns.forEach(e => document.getElementById("campaign").innerHTML += "<option>" + e + "</option>");
+            adsets.forEach(e => document.getElementById("adset").innerHTML += "<option>" + e + "</option>");
+            let campaign = document.getElementById("campaign").value;
+            let adset = document.getElementById("adset").value;
+            let next = document.getElementById("next");
+            next.addEventListener('click', () => edit(acc, campaign, adset));
+        }
+
+        function edit(acc, campaign, adset) {
+            //change layout
+            let main = document.getElementById("main");
+            let edit = document.getElementById("edit");
+            main.innerHTML = edit.innerHTML;
+            document.getElementById("sadaccount").innerHTML += '<span style="color: blue ">' + acc + '</span>';
+            document.getElementById("scampaign").innerHTML += '<span style="color: blue ">' + campaign + '</span>';
+            document.getElementById("sadset").innerHTML += '<span style="color: blue ">' + adset + '</span>';
+            let audiences = [{
+                "name": "audience 1",
+                "bid": 1.0
+            }, {
+                "name": "audience 2",
+                "bid": 0.2
+            }, {
+                "name": "glorious audience",
+                "bid": 1
+            }];
+            //TODO: get audience from acc, campaign and adset
+            audiences.forEach(a => {
+                // add to table
+                add(a)
+            })
+        }
+
+        function add(a) {
+            /*
+                <tr>
+                    <th scope="row">1</th>
+                    <td></td>
+                    <td></td>
+                </tr>
+            */
+            document.getElementById("content").innerHTML += '<tr><th scope="row">' + a.name + '<td>' + a.bid + '</td>' + '<td><button type="button" class="btn btn-primary" style="margin-right:1%">delete</button><button type="button" class="btn btn-primary">edit</button></td>'
+        }
+
+        let main = document.getElementById("main");
+        main.innerHTML = document.getElementById("login").innerHTML;
+        //TODO: do login procedure
+        var form = document.getElementById("loginform");
+        form.addEventListener('submit', handleForm);
+
+        function handleForm(event) {
+            event.preventDefault();
+            let id = document.getElementById("ID").value;
+            let token = document.getElementById("token").value;
+            if (check(id, token)) {
+                choose(id);
+            }
+        }
+    </script>
+</body>
+
+</html>
