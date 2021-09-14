@@ -101,14 +101,12 @@
             <div class="section">
                 <label for="Campaign">Campaign:</label>
                 <select name="Campaign" id="campaign">
-                  <option>Campaign</option>
                 </select>
             </div>
             <form>
                 <div class="section">
                     <label for="Adset">Ad Set:</label>
                     <select name="Adset" id="adset">
-                      <option>Adset</option>
                     </select>
                 </div>
                 <div class="section">
@@ -162,47 +160,60 @@
                 return false
             }
             //TODO check if id and token are valid
-            var d = {
-                access_token: token
-            };
-            $.ajax({
-                url: 'https://graph.facebook.com/v11.0/act_<AD_ACCOUNT_ID>',
-                data: JSON.stringify(d),
-                success: function(response, status, xhr) {
-                    id = response;
-                },
-                error: function(XMLHTTPRequest, status, errorMessage) {
-                    alert(XMLHttpRequest.responseText);
-                }
-            });
             return true;
         }
 
-        function choose(acc) {
+        function choose(acc, token) {
             //change layout
             let main = document.getElementById("main");
             let choose = document.getElementById("choose");
             main.innerHTML = choose.innerHTML;
             document.getElementById("adaccount").innerHTML += '<span style="color: blue ">' + acc + '</span>';
-            //TODO: get campaigns and adsets
-            var d = {
-                fields:[adcampaign_groups]
-            };
-            $.ajax({
-                url: 'https://graph.facebook.com/v11.0/act_<AD_ACCOUNT_ID>',
-                data: JSON.stringify(d),
-                success: function(response, status, xhr) {
-                    id = response;
-                },
-                error: function(XMLHTTPRequest, status, errorMessage) {
-                    alert(XMLHttpRequest.responseText);
+            //AD CAMPAIGNS
+            let campaigns = [];
+            let cNameID = new Object();
+            req = new XMLHttpRequest();
+            url = 'https://graph.facebook.com/v11.0/act_' + acc + '/campaigns?effective_status=%5B%22ACTIVE%22%2C%22PAUSED%22%5D&fields=name,objective&access_token=' + token;
+            req.open('GET', url, true);
+            req.onreadystatechange = function(aEvt) {
+                if (req.readyState == 4) {
+                    if (req.status == 200) {
+                        a = JSON.parse(req.responseText).data;
+                        a.forEach(e => {
+                            cNameID[e.name] = e.id;
+                            document.getElementById("campaign").innerHTML += "<option>" + e.name + "</option>";
+                            //make some map-like structure and associate name with id
+                        });
+
+                    } else
+                        console.log("Error loading page\n");
                 }
-            });
-            let campaigns = ["campaign 2", "campaign incredible"];
-            let adsets = ["adset 20", "adset amazing"];
-            campaigns.forEach(e => document.getElementById("campaign").innerHTML += "<option>" + e + "</option>");
-            adsets.forEach(e => document.getElementById("adset").innerHTML += "<option>" + e + "</option>");
-            let campaign = document.getElementById("campaign").value;
+            };
+            req.send(null);
+            cads = () => {
+                console.log(cNameID[campaign.value]);
+                //AD ACCOUNTS
+                let adsets = [];
+                req = new XMLHttpRequest();
+                url = 'https://graph.facebook.com/v11.0/' + cNameID[campaign.value] + '/adsets?fields=name,configured_status,effective_status&access_token=' + token;
+                req.open('GET', url, true);
+                let adsts = document.getElementById("adset");
+                adsts.innerHTML = '<select name="Adset" id="adset"></select>';
+                req.onreadystatechange = function(aEvt) {
+                    if (req.readyState == 4) {
+                        if (req.status == 200) {
+                            a = JSON.parse(req.responseText).data;
+                            a.forEach(e => {
+                                adsts.innerHTML += "<option>" + e.name + "</option>"
+                            });
+                        } else
+                            console.log("Error loading page\n");
+                    }
+                };
+                req.send(null);
+            };
+            let campaign = document.getElementById("campaign");
+            campaign.onchange = cads;
             let adset = document.getElementById("adset").value;
             let next = document.getElementById("next");
             next.addEventListener('click', () => edit(acc, campaign, adset));
@@ -255,7 +266,7 @@
             let id = document.getElementById("ID").value;
             let token = document.getElementById("token").value;
             if (check(id, token)) {
-                choose(id);
+                choose(id, token);
             }
         }
     </script>
