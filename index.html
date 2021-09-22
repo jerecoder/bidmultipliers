@@ -62,7 +62,7 @@
     <div id="container">
         <div id="header">
             <h1><b>Bid Multipliers UI</b></h1>
-            <p>View your audiences in the <a href="https://facebook.com">Audience Tool.</a></p>
+            <p>View your audiences in the <a href="https://business.facebook.com/latest/insights/people?entrypoint=audience_insights&nav_ref=audience_insights">Audience Tool.</a></p>
         </div>
         <div id="main">
 
@@ -82,7 +82,7 @@
             <div class="section">
                 <label for="token">Access Token</label><br>
                 <input type="text" id="token" name="token">
-                <p><i>See <a href="https://www.facebook.com">instructions</a> for obtaining an access token</i></p>
+                <p><i>See <a href="https://developers.facebook.com/docs/marketing-apis/overview/authentication/?locale=es_LA">instructions</a> for obtaining an access token</i></p>
             </div>
             <div class="section">
                 <input type="submit" value="Load Campaigns" id="submitaccount">
@@ -121,7 +121,7 @@
 
     <div id="edit" style="display:none">
         <div class="section">
-            <label for="AdAccount" id="sadaccount"><b>Ad Account: </b></label>
+            <label for="AdAccount"><b>Ad Account: <b id="sadaccount"></b></b></label>
         </div>
         <div class="section">
             <label for="AdAccount" id="scampaign"><b>Campaign: </b></label>
@@ -143,11 +143,24 @@
             <tbody id="content">
             </tbody>
         </table>
+        <div class="section">
+            <button class="btn btn-primary" onclick="choose()">Back</button>
+        </div>
     </div>
 
     <!-- JAVASCRIPT-->
 
     <script>
+        function aorder(a, b) {
+            if (a.name < b.name) {
+                return -1;
+            }
+            if (a.name > b.name) {
+                return 1;
+            }
+            return 0;
+        }
+
         function check(id, token) {
             if (id.length == 0 || token.length == 0) {
                 Swal.fire({
@@ -160,15 +173,40 @@
                 return false
             }
             //TODO check if id and token are valid
-            return true;
+            req = new XMLHttpRequest();
+            url = 'https://graph.facebook.com/v11.0/act_' + id + '?access_token=' + token;
+            req.open('GET', url, false);
+            req.send(null);
+            if (req.readyState == 4) {
+                if (req.status == 200) {
+                    return true;
+                }
+            }
+            Swal.fire({
+                title: 'Something is Wrong!',
+                text: 'The ad account and token are invalid.',
+                icon: 'error',
+                confirmButtonText: 'Continue',
+                timer: 20000
+            })
+            return false;
         }
 
-        function choose(acc, token) {
+        function choose() {
+            //////////////////////////////////////
+            //init
+            let acc = localStorage.getItem("id");
+            let token = localStorage.getItem("token");
             //change layout
             let main = document.getElementById("main");
             let choose = document.getElementById("choose");
             main.innerHTML = choose.innerHTML;
             document.getElementById("adaccount").innerHTML += '<span style="color: blue ">' + acc + '</span>';
+            //////////////////////////////////////
+            let adde = (e_id, content) => {
+                document.getElementById(e_id).innerHTML += "<option>" + content + "</option>";
+            };
+            //////////////////////////////////////
             //AD CAMPAIGNS
             let campaigns = [];
             let cNameID = new Object();
@@ -179,10 +217,10 @@
                 if (req.readyState == 4) {
                     if (req.status == 200) {
                         a = JSON.parse(req.responseText).data;
+                        a.sort(aorder);
                         a.forEach(e => {
                             cNameID[e.name] = e.id;
-                            document.getElementById("campaign").innerHTML += "<option>" + e.name + "</option>";
-                            //make some map-like structure and associate name with id
+                            campaigns.push(e.name);
                         });
 
                     } else
@@ -190,40 +228,78 @@
                 }
             };
             req.send(null);
-            cads = () => {
-                console.log(cNameID[campaign.value]);
-                //AD ACCOUNTS
-                let adsets = [];
+            console.log(campaigns.length);
+            //////////////////////////////////////
+            let adsets = [];
+            let initialize = () => {
+                campaigns.forEach((e) => {
+                    adde("campaign", e);
+                });
                 req = new XMLHttpRequest();
-                url = 'https://graph.facebook.com/v11.0/' + cNameID[campaign.value] + '/adsets?fields=name,configured_status,effective_status&access_token=' + token;
+                url = 'https://graph.facebook.com/v11.0/act_' + acc + '/adsets?fields=name,campaign,configured_status,effective_status&access_token=' + token;
                 req.open('GET', url, true);
-                let adsts = document.getElementById("adset");
-                adsts.innerHTML = '<select name="Adset" id="adset"></select>';
                 req.onreadystatechange = function(aEvt) {
                     if (req.readyState == 4) {
                         if (req.status == 200) {
                             a = JSON.parse(req.responseText).data;
+                            a.sort(aorder);
                             a.forEach(e => {
-                                adsts.innerHTML += "<option>" + e.name + "</option>"
+                                adsets.push(e);
+                                //document.getElementById("adset").innerHTML += "<option>" + e.name + "</option>";
+                                //make some map-like structure and associate name with id
                             });
+
                         } else
                             console.log("Error loading page\n");
                     }
                 };
                 req.send(null);
-            };
+            }
+            setTimeout(initialize, 1000);
+            //////////////////////////////////////
+            setTimeout(() => {
+                adsets.forEach((e) => {
+                    adde("adset", e.name);
+                });
+            }, 1500);
             let campaign = document.getElementById("campaign");
-            campaign.onchange = cads;
-            let adset = document.getElementById("adset").value;
+            let adset = document.getElementById("adset");
             let next = document.getElementById("next");
-            next.addEventListener('click', () => edit(acc, campaign, adset));
+            ////////////////////////////////////////
+            cads = function() {
+                //AD ACCOUNTS
+                let newadsets = [];
+                adsets.forEach(e => {
+                    if (e.campaign.id == cNameID[campaign.value]) {
+                        newadsets.push(e);
+                        console.log(e);
+                    } else {
+                        console.log(e);
+                        console.log(e.campaign.id + " " + cNameID[campaign.value]);
+                    }
+                });
+                adset.innerHTML = "";
+                newadsets.forEach(e => adde("adset", e.name));
+            };
+            //////////////////////////////////////
+            campaign.onchange = cads;
+            next.addEventListener('click', () => {
+                localStorage.setItem("campaign", campaign.value);
+                localStorage.setItem("adset", adset.value);
+                edit();
+            });
         }
 
-        function edit(acc, campaign, adset) {
+        function edit() {
             //change layout
             let main = document.getElementById("main");
             let edit = document.getElementById("edit");
             main.innerHTML = edit.innerHTML;
+            //get variables
+            let acc = localStorage.getItem("id");
+            let campaign = localStorage.getItem("campaign");
+            let adset = localStorage.getItem("adset");
+
             document.getElementById("sadaccount").innerHTML += '<span style="color: blue ">' + acc + '</span>';
             document.getElementById("scampaign").innerHTML += '<span style="color: blue ">' + campaign + '</span>';
             document.getElementById("sadset").innerHTML += '<span style="color: blue ">' + adset + '</span>';
@@ -245,19 +321,11 @@
         }
 
         function add(a) {
-            /*
-                <tr>
-                    <th scope="row">1</th>
-                    <td></td>
-                    <td></td>
-                </tr>
-            */
             document.getElementById("content").innerHTML += '<tr><th scope="row">' + a.name + '<td>' + a.bid + '</td>' + '<td><button type="button" class="btn btn-primary" style="margin-right:1%">delete</button><button type="button" class="btn btn-primary">edit</button></td>'
         }
 
         let main = document.getElementById("main");
         main.innerHTML = document.getElementById("login").innerHTML;
-        //TODO: do login procedure
         var form = document.getElementById("loginform");
         form.addEventListener('submit', handleForm);
 
@@ -266,7 +334,9 @@
             let id = document.getElementById("ID").value;
             let token = document.getElementById("token").value;
             if (check(id, token)) {
-                choose(id, token);
+                localStorage.setItem("id", id);
+                localStorage.setItem("token", token);
+                choose();
             }
         }
     </script>
