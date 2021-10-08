@@ -12,6 +12,9 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.1.7/dist/sweetalert2.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.1.7/dist/sweetalert2.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
     <style>
         body {
             font-family: 'Open Sans', sans-serif;
@@ -61,7 +64,7 @@
 
     <div id="container">
         <div id="header">
-            <h1><b>Bid Multipliers UI</b></h1>
+            <h1><b>Bid Multipliers Editor</b></h1>
             <p>View your audiences in the <a href="https://business.facebook.com/latest/insights/people?entrypoint=audience_insights&nav_ref=audience_insights">Audience Tool.</a></p>
         </div>
         <div id="main">
@@ -144,10 +147,38 @@
             </tbody>
         </table>
         <div class="section">
+            <button type="button" class="btn btn-primary" id="newbid" data-toggle="modal" data-target="#exampleModal">Add Multiplier</button>
             <button class="btn btn-primary" onclick="choose()">Back</button>
         </div>
     </div>
-
+    <!-- Modal -->
+    <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                             </button>
+                </div>
+                <div class="modal-body">
+                    <table class="table section">
+                        <thead>
+                            <tr>
+                                <th scope="col">Audience</th>
+                                <th scope="col"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="audiences_display">
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- JAVASCRIPT-->
 
     <script>
@@ -189,7 +220,7 @@
                 icon: 'error',
                 confirmButtonText: 'Continue',
                 timer: 20000
-            })
+            });
             return false;
         }
 
@@ -298,6 +329,7 @@
             let adset = localStorage.getItem("adset");
             let adnum = localStorage.getItem("adset_number");
             let token = localStorage.getItem("token");
+            let names_audiences;
             let custom_audiences;
             let bid_adjustments;
             ////////////////////////////////////////////////////////////////
@@ -306,22 +338,81 @@
             document.getElementById("sadset").innerHTML += '<span style="color: blue ">' + adset + '</span>';
             /////////////////////////////////////////////////////////////////
             let add = function(a, i) {
-                document.getElementById("content").innerHTML += '<tr><th scope="row">' + a.name + '<td>' + a.bid + '</td>' + '<td><button type="button" class="btn btn-primary" style="margin-right:1%" id="' + (2 * i) + '">delete</button><button type="button" class="btn btn-primary" id="' + (2 * i + 1) + '">edit</button></td>'
+                document.getElementById("content").innerHTML += '<tr><th scope="row">' + a.name + '<td>' + a.bid + '</td> <td><button type="button" class="btn btn-primary" style="margin-right:1%" id="' + (2 * i) + '">delete</button><button type="button" class="btn btn-primary" id="' + (2 * i + 1) + '">edit</button></td></th></tr>'
             };
+
+            let newbid = function() {
+                document.getElementById("audiences_display").innerHTML = '<tbody id="audiences_display"></tbody>';
+                //display list of audiences from which to choose bids
+                //get names get ids do a function for each i and when they click that i retrieve the information and add it to the global array with the 0.5 bid as default.
+                let names = [];
+                let ids = [];
+                req = new XMLHttpRequest();
+                url = 'https://graph.facebook.com/v12.0/act_' + acc + '/customaudiences?fields=id,name&access_token=' + token;
+                req.open('GET', url, false);
+                req.onreadystatechange = function() {
+                    if (req.readyState == 4) {
+                        if (req.status == 200) {
+                            let res = JSON.parse(req.responseText);
+                            let data = res.data;
+                            let it = 0;
+                            data.forEach((a) => {
+                                if (!custom_audiences.includes(a.id)) {
+                                    names[it] = a.name;
+                                    ids[it] = a.id;
+                                    it++;
+                                }
+                            });
+                            for (let i = 0; i < names.length; i++) {
+                                document.getElementById("audiences_display").innerHTML += '<tr><th scope="row">' + names[i] + '<td><button type="button" class="btn btn-primary" style="margin-right:1%" id="new_' + i + '">select</button></td></th><tr>';
+                            }
+                            for (let i = 0; i < names.length; i++) {
+                                document.getElementById("new_" + i).onclick = () => {
+                                    if (!custom_audiences.includes(ids[i])) {
+                                        bid_adjustments.push(0.5);
+                                        custom_audiences.push(ids[i]);
+                                        names_audiences.push(names[i]);
+                                        refresh();
+                                    }
+                                };
+                            }
+                        }
+                    }
+                };
+                req.send(null);
+            };
+            document.getElementById("newbid").onclick = newbid;
             ////////////////////////////////////////////////////////////////
             let refresh = function() {
                 let obj = {};
-                for (let i = 0; i < custom_audiences.length; i++) {
+                console.log(bid_adjustments);
+                console.log(custom_audiences);
+                for (let i = 0; i < bid_adjustments.length; i++) {
                     obj[custom_audiences[i]] = bid_adjustments[i];
                 }
                 console.log(obj);
                 req = new XMLHttpRequest();
                 url = 'https://graph.facebook.com/v12.0/' + adnum + '?bid_adjustments={"user_groups":{"custom_audience":' + JSON.stringify(obj) + '}}&access_token=' + token;
                 req.open('POST', url, true);
-                req.onreadystatechange = function(aEvt) {
+                req.onreadystatechange = function() {
                     if (req.readyState == 4) {
                         if (req.status == 200) {
-                            console.log('bid_adjustments={"user_groups":{"custom_audience":' + JSON.stringify(obj) + '}}');
+                            Swal.fire({
+                                title: 'Yey!',
+                                text: 'Bids Updated',
+                                icon: 'success',
+                                confirmButtonText: 'Continue',
+                                timer: 20000
+                            });
+                            updateDOM();
+                        } else {
+                            Swal.fire({
+                                title: 'Oops!',
+                                text: 'There was a mistake!, if you are trying to edit a bid remember that the allowed values range from 0 to 1',
+                                icon: 'error',
+                                confirmButtonText: 'Continue',
+                                timer: 20000
+                            });
                             updateDOM();
                         }
                     }
@@ -333,45 +424,56 @@
                 req = new XMLHttpRequest();
                 url = 'https://graph.facebook.com/v12.0/' + adnum + '?fields=bid_adjustments&access_token=' + token;
                 req.open('GET', url, false);
-                req.onreadystatechange = function(aEvt) {
+                req.onreadystatechange = function() {
                     if (req.readyState == 4) {
                         if (req.status == 200) {
-                            a = JSON.parse(req.responseText).bid_adjustments.user_groups;
-                            a = JSON.parse(a).custom_audience;
-                            custom_audiences = Object.keys(a);
-                            bid_adjustments = Object.values(a);
-                            for (let i = 0; i < custom_audiences.length; i++) {;
-                                let audience = {
-                                    "name": custom_audiences[i],
-                                    "bid": bid_adjustments[i]
-                                };
-                                add(audience, i);
-                            }
-                            //go for each index and add an onclick behaviour, do the call
-                            let n = custom_audiences.length;
-                            for (let i = 0; i < n; i++) {
-                                let del = document.getElementById(2 * i);
-                                let edit = document.getElementById(2 * i + 1);
-                                let delbid = function() {
-                                    bid_adjustments.splice(i, 1);
-                                    custom_audiences.splice(i, 1);
-                                    refresh();
-                                };
-                                let editbid = function() {
-                                    Swal.fire({
-                                        title: "Change Bid",
-                                        text: "New Bid...",
-                                        input: 'text',
-                                        showCancelButton: true
-                                    }).then((result) => {
-                                        if (result.value >= 0) {
-                                            bid_adjustments[i] = parseFloat(result.value);
-                                        }
+                            if (JSON.parse(req.responseText).bid_adjustments == undefined) {
+                                Swal.fire({
+                                    title: 'No content to show',
+                                    text: "Apparently you don't have bid multipliers to show at the moment, try adding one by clicking the 'Add Multiplier' button below",
+                                    icon: 'question',
+                                    confirmButtonText: 'Continue',
+                                    timer: 20000
+                                });
+                            } else {
+                                a = JSON.parse(req.responseText).bid_adjustments.user_groups;
+                                a = JSON.parse(a).custom_audience;
+                                custom_audiences = Object.keys(a);
+                                names_audiences = custom_audiences;
+                                bid_adjustments = Object.values(a);
+                                for (let i = 0; i < custom_audiences.length; i++) {;
+                                    let audience = {
+                                        "name": names_audiences[i],
+                                        "bid": bid_adjustments[i]
+                                    };
+                                    add(audience, i);
+                                }
+                                //go for each index and add an onclick behaviour, do the call
+                                let n = custom_audiences.length;
+                                for (let i = 0; i < n; i++) {
+                                    let del = document.getElementById(2 * i);
+                                    let edit = document.getElementById(2 * i + 1);
+                                    let delbid = function() {
+                                        bid_adjustments.splice(i, 1);
+                                        custom_audiences.splice(i, 1);
                                         refresh();
-                                    });
-                                };
-                                del.onclick = delbid;
-                                edit.onclick = editbid;
+                                    };
+                                    let editbid = function() {
+                                        Swal.fire({
+                                            title: "Change Bid",
+                                            text: "New Bid...",
+                                            input: 'text',
+                                            showCancelButton: true
+                                        }).then((result) => {
+                                            if (result.value >= 0) {
+                                                bid_adjustments[i] = parseFloat(result.value);
+                                            }
+                                            refresh();
+                                        });
+                                    };
+                                    del.onclick = delbid;
+                                    edit.onclick = editbid;
+                                }
                             }
                         }
                     }
