@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-    <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.1.7/dist/sweetalert2.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.1.7/dist/sweetalert2.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <style>
         body {
@@ -174,8 +174,9 @@
             }
             //TODO check if id and token are valid
             req = new XMLHttpRequest();
-            url = 'https://graph.facebook.com/v11.0/act_' + id + '?access_token=' + token;
+            url = 'https://graph.facebook.com/v12.0/act_' + id + '?access_token=' + token;
             req.open('GET', url, false);
+            req.setRequestHeader('Access-Control-Allow-Origin', 'https://graph.facebook.com');
             req.send(null);
             if (req.readyState == 4) {
                 if (req.status == 200) {
@@ -211,7 +212,7 @@
             let campaigns = [];
             let cNameID = new Object();
             req = new XMLHttpRequest();
-            url = 'https://graph.facebook.com/v11.0/act_' + acc + '/campaigns?effective_status=%5B%22ACTIVE%22%2C%22PAUSED%22%5D&fields=name,objective&access_token=' + token;
+            url = 'https://graph.facebook.com/v12.0/act_' + acc + '/campaigns?effective_status=%5B%22ACTIVE%22%2C%22PAUSED%22%5D&fields=name,objective&access_token=' + token;
             req.open('GET', url, true);
             req.onreadystatechange = function(aEvt) {
                 if (req.readyState == 4) {
@@ -228,15 +229,15 @@
                 }
             };
             req.send(null);
-            console.log(campaigns.length);
             //////////////////////////////////////
             let adsets = [];
+            let aNameID = new Object();
             let initialize = () => {
                 campaigns.forEach((e) => {
                     adde("campaign", e);
                 });
                 req = new XMLHttpRequest();
-                url = 'https://graph.facebook.com/v11.0/act_' + acc + '/adsets?fields=name,campaign,configured_status,effective_status&access_token=' + token;
+                url = 'https://graph.facebook.com/v12.0/act_' + acc + '/adsets?fields=name,campaign,configured_status,effective_status,id&access_token=' + token;
                 req.open('GET', url, true);
                 req.onreadystatechange = function(aEvt) {
                     if (req.readyState == 4) {
@@ -245,12 +246,10 @@
                             a.sort(aorder);
                             a.forEach(e => {
                                 adsets.push(e);
-                                //document.getElementById("adset").innerHTML += "<option>" + e.name + "</option>";
-                                //make some map-like structure and associate name with id
+                                aNameID[e.name] = e.id;
                             });
 
-                        } else
-                            console.log("Error loading page\n");
+                        }
                     }
                 };
                 req.send(null);
@@ -272,10 +271,6 @@
                 adsets.forEach(e => {
                     if (e.campaign.id == cNameID[campaign.value]) {
                         newadsets.push(e);
-                        console.log(e);
-                    } else {
-                        console.log(e);
-                        console.log(e.campaign.id + " " + cNameID[campaign.value]);
                     }
                 });
                 adset.innerHTML = "";
@@ -286,8 +281,10 @@
             next.addEventListener('click', () => {
                 localStorage.setItem("campaign", campaign.value);
                 localStorage.setItem("adset", adset.value);
+                localStorage.setItem("adset_number", aNameID[adset.value]);
                 edit();
             });
+            //////////////////////////////////////
         }
 
         function edit() {
@@ -299,29 +296,90 @@
             let acc = localStorage.getItem("id");
             let campaign = localStorage.getItem("campaign");
             let adset = localStorage.getItem("adset");
-
+            let adnum = localStorage.getItem("adset_number");
+            let token = localStorage.getItem("token");
+            let custom_audiences;
+            let bid_adjustments;
+            ////////////////////////////////////////////////////////////////
             document.getElementById("sadaccount").innerHTML += '<span style="color: blue ">' + acc + '</span>';
             document.getElementById("scampaign").innerHTML += '<span style="color: blue ">' + campaign + '</span>';
             document.getElementById("sadset").innerHTML += '<span style="color: blue ">' + adset + '</span>';
-            let audiences = [{
-                "name": "audience 1",
-                "bid": 1.0
-            }, {
-                "name": "audience 2",
-                "bid": 0.2
-            }, {
-                "name": "glorious audience",
-                "bid": 1
-            }];
-            //TODO: get audience from acc, campaign and adset
-            audiences.forEach(a => {
-                // add to table
-                add(a)
-            })
-        }
-
-        function add(a) {
-            document.getElementById("content").innerHTML += '<tr><th scope="row">' + a.name + '<td>' + a.bid + '</td>' + '<td><button type="button" class="btn btn-primary" style="margin-right:1%">delete</button><button type="button" class="btn btn-primary">edit</button></td>'
+            /////////////////////////////////////////////////////////////////
+            let add = function(a, i) {
+                document.getElementById("content").innerHTML += '<tr><th scope="row">' + a.name + '<td>' + a.bid + '</td>' + '<td><button type="button" class="btn btn-primary" style="margin-right:1%" id="' + (2 * i) + '">delete</button><button type="button" class="btn btn-primary" id="' + (2 * i + 1) + '">edit</button></td>'
+            };
+            ////////////////////////////////////////////////////////////////
+            let refresh = function() {
+                let obj = {};
+                for (let i = 0; i < custom_audiences.length; i++) {
+                    obj[custom_audiences[i]] = bid_adjustments[i];
+                }
+                console.log(obj);
+                req = new XMLHttpRequest();
+                url = 'https://graph.facebook.com/v12.0/' + adnum + '?bid_adjustments={"user_groups":{"custom_audience":' + JSON.stringify(obj) + '}}&access_token=' + token;
+                req.open('POST', url, true);
+                req.onreadystatechange = function(aEvt) {
+                    if (req.readyState == 4) {
+                        if (req.status == 200) {
+                            console.log('bid_adjustments={"user_groups":{"custom_audience":' + JSON.stringify(obj) + '}}');
+                            updateDOM();
+                        }
+                    }
+                };
+                req.send(null);
+            };
+            let updateDOM = function() {
+                document.getElementById("content").innerHTML = '<tbody id="content"></tbody >';
+                req = new XMLHttpRequest();
+                url = 'https://graph.facebook.com/v12.0/' + adnum + '?fields=bid_adjustments&access_token=' + token;
+                req.open('GET', url, false);
+                req.onreadystatechange = function(aEvt) {
+                    if (req.readyState == 4) {
+                        if (req.status == 200) {
+                            a = JSON.parse(req.responseText).bid_adjustments.user_groups;
+                            a = JSON.parse(a).custom_audience;
+                            custom_audiences = Object.keys(a);
+                            bid_adjustments = Object.values(a);
+                            for (let i = 0; i < custom_audiences.length; i++) {;
+                                let audience = {
+                                    "name": custom_audiences[i],
+                                    "bid": bid_adjustments[i]
+                                };
+                                add(audience, i);
+                            }
+                            //go for each index and add an onclick behaviour, do the call
+                            let n = custom_audiences.length;
+                            for (let i = 0; i < n; i++) {
+                                let del = document.getElementById(2 * i);
+                                let edit = document.getElementById(2 * i + 1);
+                                let delbid = function() {
+                                    bid_adjustments.splice(i, 1);
+                                    custom_audiences.splice(i, 1);
+                                    refresh();
+                                };
+                                let editbid = function() {
+                                    Swal.fire({
+                                        title: "Change Bid",
+                                        text: "New Bid...",
+                                        input: 'text',
+                                        showCancelButton: true
+                                    }).then((result) => {
+                                        if (result.value >= 0) {
+                                            bid_adjustments[i] = parseFloat(result.value);
+                                        }
+                                        refresh();
+                                    });
+                                };
+                                del.onclick = delbid;
+                                edit.onclick = editbid;
+                            }
+                        }
+                    }
+                };
+                req.send(null);
+            };
+            updateDOM();
+            ////////////////////////////////////////////////////////////////
         }
 
         let main = document.getElementById("main");
