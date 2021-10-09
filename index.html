@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bid Multipliers UI</title>
+    <title>Bid Multipliers Editor</title>
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
@@ -318,6 +318,26 @@
             //////////////////////////////////////
         }
 
+        function getName(g_id) {
+            if (g_id == "default") return g_id;
+            let token = localStorage.getItem("token");
+            req = new XMLHttpRequest();
+            url = 'https://graph.facebook.com/v12.0/' + g_id + '?fields=name&access_token=' + token;
+            let n = "hola";
+            req.open('GET', url, false);
+            req.onreadystatechange = function() {
+                if (req.readyState == 4) {
+                    if (req.status == 200) {
+                        n = JSON.parse(req.responseText).name;
+                    } else {
+                        n = g_id;
+                    }
+                }
+            };
+            req.send(null);
+            return n;
+        }
+
         function edit() {
             //change layout
             let main = document.getElementById("main");
@@ -329,9 +349,8 @@
             let adset = localStorage.getItem("adset");
             let adnum = localStorage.getItem("adset_number");
             let token = localStorage.getItem("token");
-            let names_audiences;
-            let custom_audiences;
-            let bid_adjustments;
+            let custom_audiences = [];
+            let bid_adjustments = [];
             ////////////////////////////////////////////////////////////////
             document.getElementById("sadaccount").innerHTML += '<span style="color: blue ">' + acc + '</span>';
             document.getElementById("scampaign").innerHTML += '<span style="color: blue ">' + campaign + '</span>';
@@ -348,6 +367,7 @@
                 let names = [];
                 let ids = [];
                 req = new XMLHttpRequest();
+                console.log(acc);
                 url = 'https://graph.facebook.com/v12.0/act_' + acc + '/customaudiences?fields=id,name&access_token=' + token;
                 req.open('GET', url, false);
                 req.onreadystatechange = function() {
@@ -371,7 +391,6 @@
                                     if (!custom_audiences.includes(ids[i])) {
                                         bid_adjustments.push(0.5);
                                         custom_audiences.push(ids[i]);
-                                        names_audiences.push(names[i]);
                                         refresh();
                                     }
                                 };
@@ -439,11 +458,10 @@
                                 a = JSON.parse(req.responseText).bid_adjustments.user_groups;
                                 a = JSON.parse(a).custom_audience;
                                 custom_audiences = Object.keys(a);
-                                names_audiences = custom_audiences;
                                 bid_adjustments = Object.values(a);
                                 for (let i = 0; i < custom_audiences.length; i++) {;
                                     let audience = {
-                                        "name": names_audiences[i],
+                                        "name": getName(custom_audiences[i]),
                                         "bid": bid_adjustments[i]
                                     };
                                     add(audience, i);
