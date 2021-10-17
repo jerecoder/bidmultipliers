@@ -390,6 +390,8 @@
                                     it++;
                                 }
                             });
+                            names.push("default");
+                            ids.push("default");
                             for (let i = 0; i < names.length; i++) {
                                 document.getElementById("audiences_display").innerHTML += '<tr><th scope="row">' + names[i] + '<td>' + ids[i] + '</td><td><button type="button" class="btn btn-primary" style="margin-right:1%" id="new_' + i + '">select</button></td></th><tr>';
                             }
