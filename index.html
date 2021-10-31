@@ -15,6 +15,10 @@
     <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-typeahead/2.11.0/jquery.typeahead.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-typeahead/2.11.0/jquery.typeahead.js"></script>
+
     <style>
         body {
             font-family: 'Open Sans', sans-serif;
@@ -26,7 +30,7 @@
         
         #container {
             font-size: larger;
-            width: 30%;
+            width: 40%;
             text-align: center;
             margin: 0;
             position: absolute;
@@ -153,16 +157,17 @@
             </tbody>
         </table>
         <div class="section">
-            <button type="button" class="btn btn-primary" id="newbid" data-toggle="modal" data-target="#exampleModal">Add Multiplier</button>
+            <button type="button" class="btn btn-primary" id="newbid" data-toggle="modal" data-target="#bidModal">Add Audience Multiplier</button>
+            <button type="button" class="btn btn-primary" id="newlocation" data-toggle="modal" data-target="#l_bidModal">Add Location Multiplier</button>
             <button class="btn btn-primary" onclick="choose()">Back</button>
         </div>
     </div>
-    <!-- Modal -->
-    <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <!-- Modal Audience-->
+    <div class="modal fade" id="bidModal" tabindex="-1" role="dialog" aria-labelledby="bidModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
+                    <h5 class="modal-title" id="exampleModalLabel">Add Audience</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                                 <span aria-hidden="true">&times;</span>
                              </button>
@@ -186,9 +191,185 @@
             </div>
         </div>
     </div>
+
+    <!--Modal Location-->
+    <div class="modal fade" id="l_bidModal" tabindex="-1" role="dialog" aria-labelledby="bidModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Add Location</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                             </button>
+                </div>
+                <div class="modal-body">
+                    <div style="width: 100%; max-width: 800px; margin: 0 auto;">
+                        <div class="js-result-container"></div>
+                        <form>
+                            <div class="typeahead__container">
+                                <div class="typeahead__field">
+                                    <div class="typeahead__query">
+                                        <input class="js-typeahead" name="q" autofocus autocomplete="off">
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- JAVASCRIPT-->
 
     <script>
+        localStorage.setItem("searching", "false");
+        ///////////////////////////////////////////////////////
+        //LOCAL STORAGE LISTENER, IF LISTENING THEN CONSOLE.LOG(VALUE)
+        //SET SEARCHING FALSE
+        ///////////////////////////////////////////////////////
+        let ACCESS_TOKEN = localStorage.getItem("token");
+        const API_VERSION = "v12.0";
+
+        typeof $.typeahead === 'function' && $.typeahead({
+            input: ".js-typeahead",
+            minLength: 1,
+            order: "asc",
+            group: true,
+            maxItemPerGroup: 4,
+            asyncResult: true,
+            groupOrder: function(node, query, result, resultCount, resultCountPerGroup) {
+
+                var scope = this,
+                    sortGroup = [];
+
+                for (var i in result) {
+                    sortGroup.push({
+                        group: i,
+                        length: result[i].length
+                    });
+                }
+
+                sortGroup.sort(
+                    scope.helper.sort(
+                        ["length"],
+                        false, // false = desc, the most results on top
+                        function(a) {
+                            return a.toString().toUpperCase()
+                        }
+                    )
+                );
+
+                return $.map(sortGroup, function(val, i) {
+                    return val.group
+                });
+            },
+            hint: true,
+            dropdownFilter: "All",
+            template: "{{name}}, <small><em>{{group}}</em></small>",
+            emptyTemplate: "no result for {{query}}",
+            source: {
+                region: {
+                    dynamic: true,
+                    display: 'name',
+                    ajax: function(query) {
+                        return {
+                            type: "GET",
+                            url: "https://graph.facebook.com/" + API_VERSION + "/search",
+                            data: {
+                                "access_token": ACCESS_TOKEN,
+                                "location_types": ["region"],
+                                "type": "adgeolocation",
+                                "q": "{{query}}"
+                            },
+                            callback: {
+                                done: function(data) {
+                                    return data.data;
+                                }
+                            }
+                        }
+                    }
+                },
+                city: {
+                    dynamic: true,
+                    display: 'name',
+                    ajax: function(query) {
+                        return {
+                            type: "GET",
+                            url: "https://graph.facebook.com/" + API_VERSION + "/search",
+                            data: {
+                                "access_token": ACCESS_TOKEN,
+                                "location_types": ["city"],
+                                "type": "adgeolocation",
+                                "q": "{{query}}"
+                            },
+                            callback: {
+                                done: function(data) {
+                                    return data.data;
+                                }
+                            }
+                        }
+                    }
+                },
+                country: {
+                    dynamic: true,
+                    display: 'name',
+                    ajax: function(query) {
+                        return {
+                            type: "GET",
+                            url: "https://graph.facebook.com/" + API_VERSION + "/search",
+                            data: {
+                                "access_token": ACCESS_TOKEN,
+                                "location_types": ["country"],
+                                "type": "adgeolocation",
+                                "q": "{{query}}"
+                            },
+                            callback: {
+                                done: function(data) {
+                                    return data.data;
+                                }
+                            }
+                        }
+                    }
+                },
+            },
+            callback: {
+                onClickAfter: function(node, a, item, event) {
+                    event.preventDefault();
+                    ///PASS BY LOCAL STORAGE///
+                    ///RECEIVE FROM EDIT, ADD TO VARIABLES, DO THE CALL TO ADD ITEM///
+                    localStorage.setItem("selected", item.key + "," + item.name + "," + item.group);
+                    console.log(item);
+                    let ev = new Event("add");
+                    window.dispatchEvent(ev);
+                },
+                onLayoutBuiltBefore: function(node, query, result, resultHtmlList) {
+                    if (!resultHtmlList ||
+                        !this.generateGroups.length ||
+                        this.displayEmptyTemplate ||
+                        this.generatedGroupCount === this.generateGroups.length
+                    ) return;
+
+
+                    this.generateGroups.forEach(function(group) {
+                        if (!resultHtmlList.find('[data-search-group="' + group + '"]').length) {
+                            resultHtmlList.append('<li class="typeahead__group" data-search-group="' + group + '">\
+                                    <a href="javascript:;" tabindex="-1">' + group + '</a>\
+                                </li>\
+                                <li class="typeahead__item" data-group="" data-index="-1">\
+                                    <span style="padding: 0.5rem 0.75rem;display: block;">Loading...</span>\
+                                </li>');
+                        }
+                    });
+
+                    return resultHtmlList;
+
+                }
+            }
+        });
+
         function aorder(a, b) {
             if (a.name < b.name) {
                 return -1;
@@ -325,7 +506,7 @@
             //////////////////////////////////////
         }
 
-        function getName(g_id) {
+        function getNameC(g_id) {
             if (g_id == "default") return g_id;
             let token = localStorage.getItem("token");
             req = new XMLHttpRequest();
@@ -345,6 +526,10 @@
             return n;
         }
 
+        function getNameL(g_id) {
+            return "Buenos Aires";
+        }
+
         function edit() {
             //change layout
             let main = document.getElementById("main");
@@ -358,11 +543,16 @@
             let token = localStorage.getItem("token");
             let custom_audiences = [];
             let bid_adjustments = [];
+            let custom_locations = [];
+            let custom_locations_id = [];
+            let custom_locations_bids = [];
             ////////////////////////////////////////////////////////////////
             document.getElementById("sadaccount").innerHTML += '<span style="color: blue ">' + acc + '</span>';
             document.getElementById("scampaign").innerHTML += '<span style="color: blue ">' + campaign + '</span>';
             document.getElementById("sadset").innerHTML += '<span style="color: blue ">' + adset + '</span>';
             /////////////////////////////////////////////////////////////////
+            //ADD global default button
+            ////////////////////////////////////////////////////////////////
             let add = function(a, i) {
                 document.getElementById("content").innerHTML += '<tr><th scope="row">' + a.name + '<td>' + a.id + '</td> <td>' + a.bid + '</td> <td><button type="button" class="btn btn-primary" style="display:inline" id="' + (2 * i) + '">delete</button><button type="button" class="btn btn-primary" style="display:inline" id="' + (2 * i + 1) + '">edit</button></div></td></th></tr>'
             };
@@ -410,8 +600,75 @@
                 };
                 req.send(null);
             };
+
+            let newloc = function() {
+                window.addEventListener("add", function() {
+                    let s = localStorage.getItem("searching");
+                    if (s == "true") {
+                        let selec = localStorage.getItem("selected").split(",");
+                        localStorage.setItem("seaching", "false");
+                        //set item locally and update to api
+                        custom_locations.push([selec[1], selec[2]]);
+                        console.log(custom_locations[0])
+                        custom_locations_id.push(selec[0]);
+                        custom_locations_bids.push(0.5);
+                        refreshloc();
+                    }
+                }, false);
+                localStorage.setItem("searching", "true");
+            };
+
+            let refreshloc = function() {
+                let obj = {};
+                let groupt = ["city", "region", "country"];
+                let groupto = ["cities", "regions", "countries"];
+                let groupa = [{}, {}, {}];
+                for (let i = 0; i < custom_locations.length; i++) {
+                    for (let j = 0; j < groupt.length; j++) {
+                        if (custom_locations[i][1] == groupt[j]) {
+                            groupa[j][custom_locations_id[i]] = 0.5;
+                        }
+                    }
+                }
+                for (let j = 0; j < groupt.length; j++) {
+                    console.log(groupa[j]);
+                }
+                for (let j = 0; j < groupt.length; j++) {
+                    obj[groupto[j]] = groupa[j];
+                }
+                console.log(obj);
+                req = new XMLHttpRequest();
+                url = 'https://graph.facebook.com/v12.0/' + adnum + '?bid_adjustments={"user_groups":{"home_location":' + JSON.stringify(obj) + '}}&access_token=' + token;
+                console.log(url);
+                req.open('POST', url, true);
+                req.onreadystatechange = function() {
+                    if (req.readyState == 4) {
+                        if (req.status == 200) {
+                            Swal.fire({
+                                title: 'Yey!',
+                                text: 'Bids Updated',
+                                icon: 'success',
+                                confirmButtonText: 'Continue',
+                                timer: 20000
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Oops!',
+                                text: 'Something went wrong! try again later',
+                                icon: 'error',
+                                confirmButtonText: 'Continue',
+                                timer: 20000
+                            });
+                        }
+                    }
+                };
+                req.send(null);
+            };
+            //add event listener to local storage check if searching is true
+            document.getElementById("newlocation").onclick = newloc;
             document.getElementById("newbid").onclick = newbid;
             ////////////////////////////////////////////////////////////////
+            //add event listener set searching variable to true
             let refresh = function() {
                 let obj = {};
                 console.log(bid_adjustments);
@@ -466,52 +723,109 @@
                                 });
                             } else {
                                 a = JSON.parse(req.responseText).bid_adjustments.user_groups;
-                                a = JSON.parse(a).custom_audience;
-                                custom_audiences = Object.keys(a);
-                                bid_adjustments = Object.values(a);
-                                for (let i = 0; i < custom_audiences.length; i++) {;
-                                    let audience = {
-                                        "name": getName(custom_audiences[i]),
-                                        "id": custom_audiences[i],
-                                        "bid": bid_adjustments[i]
-                                    };
-                                    add(audience, i);
-                                }
-                                //go for each index and add an onclick behaviour, do the call
-                                let n = custom_audiences.length;
-                                for (let i = 0; i < n; i++) {
-                                    let del = document.getElementById(2 * i);
-                                    let edit = document.getElementById(2 * i + 1);
-                                    let delbid = function() {
-                                        bid_adjustments.splice(i, 1);
-                                        custom_audiences.splice(i, 1);
-                                        refresh();
-                                    };
-                                    let editbid = function() {
-                                        Swal.fire({
-                                            title: "Change Bid",
-                                            text: "New Bid...",
-                                            input: 'text',
-                                            showCancelButton: true
-                                        }).then((result) => {
-                                            let replace = parseFloat(result.value);
-                                            console.log(replace);
-                                            if (replace > 0 && replace <= 1) {
-                                                bid_adjustments[i] = parseFloat(result.value);
+                                b = JSON.parse(a).custom_audience;
+                                c = JSON.parse(a).home_location;
+                                if (c == null) {
+                                    a = b;
+                                    custom_audiences = Object.keys(a);
+                                    bid_adjustments = Object.values(a);
+                                    for (let i = 0; i < custom_audiences.length; i++) {;
+                                        let audience = {
+                                            "name": getNameC(custom_audiences[i]),
+                                            "id": custom_audiences[i],
+                                            "bid": bid_adjustments[i]
+                                        };
+                                        add(audience, i);
+                                    }
+                                    //go for each index and add an onclick behaviour, do the call
+                                    let n = custom_audiences.length;
+                                    for (let i = 0; i < n; i++) {
+                                        let del = document.getElementById(2 * i);
+                                        let edit = document.getElementById(2 * i + 1);
+                                        let delbid = function() {
+                                            bid_adjustments.splice(i, 1);
+                                            custom_audiences.splice(i, 1);
+                                            refresh();
+                                        };
+                                        let editbid = function() {
+                                            Swal.fire({
+                                                title: "Change Bid",
+                                                text: "New Bid...",
+                                                input: 'text',
+                                                showCancelButton: true
+                                            }).then((result) => {
+                                                let replace = parseFloat(result.value);
+                                                console.log(replace);
+                                                if (replace > 0 && replace <= 1) {
+                                                    bid_adjustments[i] = parseFloat(result.value);
+                                                    refresh();
+                                                } else {
+                                                    Swal.fire({
+                                                        title: 'Oops!',
+                                                        text: 'There was a mistake!, if you are trying to edit a bid remember that the allowed values range from 0 to 1',
+                                                        icon: 'error',
+                                                        confirmButtonText: 'Continue',
+                                                        timer: 20000
+                                                    });
+                                                }
+                                            });
+                                        };
+                                        del.onclick = delbid;
+                                        edit.onclick = editbid;
+                                    }
+                                } else {
+                                    a = c;
+                                    let groupto = ["cities", "regions", "countries"];
+                                    for (let i = 0; i < groupto.length; i++) {
+                                        let loc_obj = a[groupto[i]];
+                                        if (loc_obj == null) continue;
+                                        custom_locations_id = Object.keys(loc_obj);
+                                        custom_locations_bids = Object.values(loc_obj);
+                                        for (let i = 0; i < custom_locations_id.length; i++) {;
+                                            let audience = {
+                                                "name": getNameL(custom_locations_id[i]),
+                                                "id": custom_locations_id[i],
+                                                "bid": custom_locations_bids[i]
+                                            };
+                                            add(audience, i);
+                                        }
+                                        //go for each index and add an onclick behaviour, do the call
+                                        let n = custom_locations_id.length;
+                                        for (let i = 0; i < n; i++) {
+                                            let del = document.getElementById(2 * i);
+                                            let edit = document.getElementById(2 * i + 1);
+                                            let delbid = function() {
+                                                custom_locations_bids.splice(i, 1);
+                                                custom_locations_id.splice(i, 1);
                                                 refresh();
-                                            } else {
+                                            };
+                                            let editbid = function() {
                                                 Swal.fire({
-                                                    title: 'Oops!',
-                                                    text: 'There was a mistake!, if you are trying to edit a bid remember that the allowed values range from 0 to 1',
-                                                    icon: 'error',
-                                                    confirmButtonText: 'Continue',
-                                                    timer: 20000
+                                                    title: "Change Bid",
+                                                    text: "New Bid...",
+                                                    input: 'text',
+                                                    showCancelButton: true
+                                                }).then((result) => {
+                                                    let replace = parseFloat(result.value);
+                                                    console.log(replace);
+                                                    if (replace > 0 && replace <= 1) {
+                                                        custom_locations_bids[i] = parseFloat(result.value);
+                                                        refresh();
+                                                    } else {
+                                                        Swal.fire({
+                                                            title: 'Oops!',
+                                                            text: 'There was a mistake!, if you are trying to edit a bid remember that the allowed values range from 0 to 1',
+                                                            icon: 'error',
+                                                            confirmButtonText: 'Continue',
+                                                            timer: 20000
+                                                        });
+                                                    }
                                                 });
-                                            }
-                                        });
-                                    };
-                                    del.onclick = delbid;
-                                    edit.onclick = editbid;
+                                            };
+                                            del.onclick = delbid;
+                                            edit.onclick = editbid;
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -535,6 +849,7 @@
             if (check(id, token)) {
                 localStorage.setItem("id", id);
                 localStorage.setItem("token", token);
+                ACCESS_TOKEN = token;
                 choose();
             }
         }
