@@ -217,7 +217,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal" id="closeloc">Close</button>
                 </div>
             </div>
         </div>
@@ -341,7 +341,6 @@
                     ///PASS BY LOCAL STORAGE///
                     ///RECEIVE FROM EDIT, ADD TO VARIABLES, DO THE CALL TO ADD ITEM///
                     localStorage.setItem("selected", item.key + "," + item.name + "," + item.group);
-                    console.log(item);
                     let ev = new Event("add");
                     window.dispatchEvent(ev);
                 },
@@ -527,7 +526,7 @@
         }
 
         function getNameL(g_id) {
-            return "Buenos Aires";
+            return g_id;
         }
 
         function edit() {
@@ -556,156 +555,13 @@
             let add = function(a, i) {
                 document.getElementById("content").innerHTML += '<tr><th scope="row">' + a.name + '<td>' + a.id + '</td> <td>' + a.bid + '</td> <td><button type="button" class="btn btn-primary" style="display:inline" id="' + (2 * i) + '">delete</button><button type="button" class="btn btn-primary" style="display:inline" id="' + (2 * i + 1) + '">edit</button></div></td></th></tr>'
             };
-
-            let newbid = function() {
-                document.getElementById("audiences_display").innerHTML = '<tbody id="audiences_display"></tbody>';
-                //display list of audiences from which to choose bids
-                //get names get ids do a function for each i and when they click that i retrieve the information and add it to the global array with the 0.5 bid as default.
-                let names = [];
-                let ids = [];
-                req = new XMLHttpRequest();
-                console.log(acc);
-                url = 'https://graph.facebook.com/v12.0/act_' + acc + '/customaudiences?fields=id,name&access_token=' + token;
-                req.open('GET', url, false);
-                req.onreadystatechange = function() {
-                    if (req.readyState == 4) {
-                        if (req.status == 200) {
-                            let res = JSON.parse(req.responseText);
-                            let data = res.data;
-                            let it = 0;
-                            data.forEach((a) => {
-                                if (!custom_audiences.includes(a.id)) {
-                                    names[it] = a.name;
-                                    ids[it] = a.id;
-                                    it++;
-                                }
-                            });
-                            names.push("default");
-                            ids.push("default");
-                            for (let i = 0; i < names.length; i++) {
-                                document.getElementById("audiences_display").innerHTML += '<tr><th scope="row">' + names[i] + '<td>' + ids[i] + '</td><td><button type="button" class="btn btn-primary" style="margin-right:1%" id="new_' + i + '">select</button></td></th><tr>';
-                            }
-                            for (let i = 0; i < names.length; i++) {
-                                document.getElementById("new_" + i).onclick = (e) => {
-                                    if (!custom_audiences.includes(ids[i])) {
-                                        bid_adjustments.push(0.5);
-                                        custom_audiences.push(ids[i]);
-                                        refresh();
-                                        e.target.parentElement.parentElement.style.display = "none";
-                                    }
-                                };
-                            }
-                        }
-                    }
-                };
-                req.send(null);
-            };
-
-            let newloc = function() {
-                window.addEventListener("add", function() {
-                    let s = localStorage.getItem("searching");
-                    if (s == "true") {
-                        let selec = localStorage.getItem("selected").split(",");
-                        localStorage.setItem("seaching", "false");
-                        //set item locally and update to api
-                        custom_locations.push([selec[1], selec[2]]);
-                        console.log(custom_locations[0])
-                        custom_locations_id.push(selec[0]);
-                        custom_locations_bids.push(0.5);
-                        refreshloc();
-                    }
-                }, false);
-                localStorage.setItem("searching", "true");
-            };
-
-            let refreshloc = function() {
-                let obj = {};
-                let groupt = ["city", "region", "country"];
-                let groupto = ["cities", "regions", "countries"];
-                let groupa = [{}, {}, {}];
-                for (let i = 0; i < custom_locations.length; i++) {
-                    for (let j = 0; j < groupt.length; j++) {
-                        if (custom_locations[i][1] == groupt[j]) {
-                            groupa[j][custom_locations_id[i]] = 0.5;
-                        }
-                    }
-                }
-                for (let j = 0; j < groupt.length; j++) {
-                    console.log(groupa[j]);
-                }
-                for (let j = 0; j < groupt.length; j++) {
-                    obj[groupto[j]] = groupa[j];
-                }
-                console.log(obj);
-                req = new XMLHttpRequest();
-                url = 'https://graph.facebook.com/v12.0/' + adnum + '?bid_adjustments={"user_groups":{"home_location":' + JSON.stringify(obj) + '}}&access_token=' + token;
-                console.log(url);
-                req.open('POST', url, true);
-                req.onreadystatechange = function() {
-                    if (req.readyState == 4) {
-                        if (req.status == 200) {
-                            Swal.fire({
-                                title: 'Yey!',
-                                text: 'Bids Updated',
-                                icon: 'success',
-                                confirmButtonText: 'Continue',
-                                timer: 20000
-                            });
-                        } else {
-                            Swal.fire({
-                                title: 'Oops!',
-                                text: 'Something went wrong! try again later',
-                                icon: 'error',
-                                confirmButtonText: 'Continue',
-                                timer: 20000
-                            });
-                        }
-                    }
-                };
-                req.send(null);
-            };
-            //add event listener to local storage check if searching is true
-            document.getElementById("newlocation").onclick = newloc;
-            document.getElementById("newbid").onclick = newbid;
             ////////////////////////////////////////////////////////////////
-            //add event listener set searching variable to true
-            let refresh = function() {
-                let obj = {};
-                console.log(bid_adjustments);
-                console.log(custom_audiences);
-                for (let i = 0; i < bid_adjustments.length; i++) {
-                    obj[custom_audiences[i]] = bid_adjustments[i];
-                }
-                console.log(obj);
-                req = new XMLHttpRequest();
-                url = 'https://graph.facebook.com/v12.0/' + adnum + '?bid_adjustments={"user_groups":{"custom_audience":' + JSON.stringify(obj) + '}}&access_token=' + token;
-                req.open('POST', url, true);
-                req.onreadystatechange = function() {
-                    if (req.readyState == 4) {
-                        if (req.status == 200) {
-                            Swal.fire({
-                                title: 'Yey!',
-                                text: 'Bids Updated',
-                                icon: 'success',
-                                confirmButtonText: 'Continue',
-                                timer: 20000
-                            });
-                            updateDOM();
-                        } else {
-                            Swal.fire({
-                                title: 'Oops!',
-                                text: 'Something went wrong! try again later',
-                                icon: 'error',
-                                confirmButtonText: 'Continue',
-                                timer: 20000
-                            });
-                            updateDOM();
-                        }
-                    }
-                };
-                req.send(null);
-            };
             let updateDOM = function() {
+                custom_audiences = [];
+                bid_adjustments = [];
+                custom_locations = [];
+                custom_locations_id = [];
+                custom_locations_bids = [];
                 document.getElementById("content").innerHTML = '<tbody id="content"></tbody >';
                 req = new XMLHttpRequest();
                 url = 'https://graph.facebook.com/v12.0/' + adnum + '?fields=bid_adjustments&access_token=' + token;
@@ -833,7 +689,162 @@
                 };
                 req.send(null);
             };
+            document.getElementById("closeloc").onclick = () => {
+                localStorage.setItem("searching", false);
+                updateDOM;
+            }
             updateDOM();
+            ///////////////////////////////////////////////////////////////
+            let newbid = function() {
+                document.getElementById("audiences_display").innerHTML = '<tbody id="audiences_display"></tbody>';
+                //display list of audiences from which to choose bids
+                //get names get ids do a function for each i and when they click that i retrieve the information and add it to the global array with the 0.5 bid as default.
+                let names = [];
+                let ids = [];
+                req = new XMLHttpRequest();
+                console.log(acc);
+                url = 'https://graph.facebook.com/v12.0/act_' + acc + '/customaudiences?fields=id,name&access_token=' + token;
+                req.open('GET', url, false);
+                req.onreadystatechange = function() {
+                    if (req.readyState == 4) {
+                        if (req.status == 200) {
+                            let res = JSON.parse(req.responseText);
+                            let data = res.data;
+                            let it = 0;
+                            data.forEach((a) => {
+                                if (!custom_audiences.includes(a.id)) {
+                                    names[it] = a.name;
+                                    ids[it] = a.id;
+                                    it++;
+                                }
+                            });
+                            names.push("default");
+                            ids.push("default");
+                            for (let i = 0; i < names.length; i++) {
+                                document.getElementById("audiences_display").innerHTML += '<tr><th scope="row">' + names[i] + '<td>' + ids[i] + '</td><td><button type="button" class="btn btn-primary" style="margin-right:1%" id="new_' + i + '">select</button></td></th><tr>';
+                            }
+                            for (let i = 0; i < names.length; i++) {
+                                document.getElementById("new_" + i).onclick = (e) => {
+                                    if (!custom_audiences.includes(ids[i])) {
+                                        bid_adjustments.push(0.5);
+                                        custom_audiences.push(ids[i]);
+                                        refresh();
+                                        e.target.parentElement.parentElement.style.display = "none";
+                                    }
+                                };
+                            }
+                        }
+                    }
+                };
+                req.send(null);
+            };
+
+            let newloc = function() {
+                window.addEventListener("add", function() {
+                    let s = localStorage.getItem("searching");
+                    if (s == "true") {
+                        let selec = localStorage.getItem("selected").split(",");
+                        localStorage.setItem("seaching", "false");
+                        //set item locally and update to api
+                        custom_locations.push([selec[1], selec[2]]);
+                        //console.log(custom_locations[0])
+                        custom_locations_id.push(selec[0]);
+                        custom_locations_bids.push(0.5);
+                        refreshloc();
+                    }
+                }, false);
+                localStorage.setItem("searching", "true");
+            };
+
+            let refreshloc = function() {
+                let obj = {};
+                let groupt = ["city", "region", "country"];
+                let groupto = ["cities", "regions", "countries"];
+                let groupa = [{}, {}, {}];
+                for (let i = 0; i < custom_locations.length; i++) {
+                    for (let j = 0; j < groupt.length; j++) {
+                        if (custom_locations[i][1] == groupt[j]) {
+                            groupa[j][custom_locations_id[i]] = 0.5;
+                        }
+                    }
+                }
+                for (let j = 0; j < groupt.length; j++) {
+                    //console.log(groupa[j]);
+                }
+                console.log(groupa);
+                for (let j = 0; j < groupt.length; j++) {
+                    obj[groupto[j]] = groupa[j];
+                }
+                console.log(obj);
+                req = new XMLHttpRequest();
+                url = 'https://graph.facebook.com/v12.0/' + adnum + '?bid_adjustments={"user_groups":{"home_location":' + JSON.stringify(obj) + '}}&access_token=' + token;
+                console.log(url);
+                req.open('POST', url, true);
+                req.onreadystatechange = function() {
+                    if (req.readyState == 4) {
+                        if (req.status == 200) {
+                            Swal.fire({
+                                title: 'Yey!',
+                                text: 'Bids Updated',
+                                icon: 'success',
+                                confirmButtonText: 'Continue',
+                                timer: 20000
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Oops!',
+                                text: 'Something went wrong! try again later',
+                                icon: 'error',
+                                confirmButtonText: 'Continue',
+                                timer: 20000
+                            });
+                        }
+                    }
+                };
+                req.send(null);
+            };
+            //add event listener to local storage check if searching is true
+            document.getElementById("newlocation").onclick = newloc;
+            document.getElementById("newbid").onclick = newbid;
+
+            ////////////////////////////////////////////////////////////////
+            //add event listener set searching variable to true
+            let refresh = function() {
+                let obj = {};
+                console.log(bid_adjustments);
+                console.log(custom_audiences);
+                for (let i = 0; i < bid_adjustments.length; i++) {
+                    obj[custom_audiences[i]] = bid_adjustments[i];
+                }
+                console.log(obj);
+                req = new XMLHttpRequest();
+                url = 'https://graph.facebook.com/v12.0/' + adnum + '?bid_adjustments={"user_groups":{"custom_audience":' + JSON.stringify(obj) + '}}&access_token=' + token;
+                req.open('POST', url, true);
+                req.onreadystatechange = function() {
+                    if (req.readyState == 4) {
+                        if (req.status == 200) {
+                            Swal.fire({
+                                title: 'Yey!',
+                                text: 'Bids Updated',
+                                icon: 'success',
+                                confirmButtonText: 'Continue',
+                                timer: 20000
+                            });
+                            updateDOM();
+                        } else {
+                            Swal.fire({
+                                title: 'Oops!',
+                                text: 'Something went wrong! try again later',
+                                icon: 'error',
+                                confirmButtonText: 'Continue',
+                                timer: 20000
+                            });
+                            updateDOM();
+                        }
+                    }
+                };
+                req.send(null);
+            };
             ////////////////////////////////////////////////////////////////
         }
 
